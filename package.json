@@ -1,5 +1,9 @@
 {
   "name": "dwingo",
+  "author": {
+    "name": "kenneth koontz",
+    "email": "kenneth.koontz@gmail.com"
+  },
   "version": "0.0.1",
   "dependencies": {
     "mongodb": "*"
