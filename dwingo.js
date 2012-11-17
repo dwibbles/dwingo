@@ -94,7 +94,7 @@ Database.prototype._update = function(options, callback) {
 
 Database.prototype._queueOrExecute = function(action, options, callback) {
   if (this._connected)
-    this['_'+action].call(options, callback);
+    this['_'+action].call(this, options, callback);
   else
     this._q.push([action, options, callback]); 
 };
