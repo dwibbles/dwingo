@@ -115,4 +115,8 @@ Database.prototype.update = function(options, callback) {
   this._queueOrExecute('update', options, callback);
 };
 
+Database.prototype.ObjectId = function(string) {
+  return (string) ? ObjectId(string) : new ObjectId().toString();
+}
+
 module.exports = Database;
