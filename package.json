@@ -4,7 +4,8 @@
     "name": "kenneth koontz",
     "email": "kenneth.koontz@gmail.com"
   },
-  "version": "0.0.1",
+  "main": "./dwingo",
+  "version": "0.0.2",
   "dependencies": {
     "mongodb": "*"
   }
