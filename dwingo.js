@@ -37,14 +37,14 @@ var Database = function(name) {
 util.inherits(Database, events.EventEmitter);
 
 Database.prototype._create = function(options, callback) {
-  this._client.collection(options.collection, function(error, collection) {
+  this._client.createCollection(options.collection, function(error, collection) {
     if (error) {
       return callback(error, null);
     } else {
-      collection.findOne(options.query, function(error, document) {
+      collection.insert(options.document, {safe: true}, function(error, result) {
         if (error)
           return callback(error, null);
-        return callback(null, document);
+        return callback(null, result); 
       });
     }
   });
