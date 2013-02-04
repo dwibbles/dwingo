@@ -6,6 +6,29 @@ var Server = mongo.Server;
 var Db = mongo.Db;
 var server = new Server('localhost', 27017, {auto_reconnect: true});
 
+var Command = function(args) {
+  var self = this;
+  this.args = Array.prototype.slice.call(args);
+  this.collectionName = this.args[1];
+  this.type = this.args[0];
+  this.callback = this.args[this.args.length - 1];
+
+  // Remove the command type, collection name, and callback from the args array.
+  this.args.splice(0, 2);
+  this.args.pop();
+
+  this.handler = function(error, result) {
+    if (error) 
+      return self.callback(error, null);
+    return self.callback(null, result);
+  };
+
+  if (this.type === 'update' || this.type === 'create') 
+    this.args.push({ safe: true }); // Add safe: true for update or create
+  if (this.type !== 'read') 
+    this.args.push(this.handler); // Attach handler to args array.
+};
+
 var Database = function(name) {
   var self = this;
 
@@ -36,87 +59,90 @@ var Database = function(name) {
 
 util.inherits(Database, events.EventEmitter);
 
-Database.prototype._create = function(options, callback) {
-  this._client.createCollection(options.collection, function(error, collection) {
-    if (error) {
-      return callback(error, null);
-    } else {
-      collection.insert(options.document, {safe: true}, function(error, result) {
-        if (error)
-          return callback(error, null);
-        return callback(null, result); 
-      });
-    }
+Database.prototype._create = function() {
+  var command = new Command(arguments);
+
+  this._client.createCollection(command.collectionName, function(error, collection) {
+    if (error) return command.callback(error, null);
+    
+    collection.insert.apply(collection, command.args);
   });
 };
 
-Database.prototype._readOne = function(options, callback) {
-  this._client.collection(options.collection, function(error, collection) {
-    if (error) {
-      return callback(error, null);
-    } else {
-      collection.findOne(options.query, function(error, document) {
-        if (error)
-          return callback(error, null);
-        return callback(null, document);
-      });
-    }
+Database.prototype._readOne = function() {
+  var command = new Command(arguments);
+
+  this._client.collection(command.collectionName, function(error, collection) {
+    if (error) return command.callback(error, null);
+    
+    collection.findOne.apply(collection, command.args);
   });
 };
 
-Database.prototype._read = function(options, callback) {
-  this._client.collection(options.collection, function(error, collection) {
-    if (error) {
-      return callback(error, null);
-    } else {
-      collection.find(options.query, options.fields).toArray(function(error, resultSet) {
-        if (error)
-          return callback(error, null);
-        return callback(null, resultSet);
-      }); 
-    }
+Database.prototype._read = function() {
+  var command = new Command(arguments);
+
+  this._client.collection(command.collectionName, function(error, collection) {
+    if (error) return command.callback(error, null); 
+    
+    collection.find.apply(collection, command.args).toArray(function(error, resultSet) {
+      if (error) return command.callback(error, null);
+
+      return command.callback(null, resultSet);
+    }); 
   });
 };
 
-Database.prototype._update = function(options, callback) {
-  this._client.collection(options.collection, function(error, collection) {
-    if (error) {
-      return callback(error, null);
-    } else {
-      collection.update(options.query, options.update, {safe: true}, function(error, result) {
-        if (error)
-          return callback(error, null);
-        return callback(null, result); 
-      });
-    }
+Database.prototype._update = function() {
+  var command = new Command(arguments);
+
+  this._client.collection(command.collectionName, function(error, collection) {
+    if (error) return command.callback(error, null);
+    
+    collection.update.apply(collection, command.args);
   });
 };
 
-Database.prototype._queueOrExecute = function(action, options, callback) {
-  if (this._connected)
-    this['_'+action].call(this, options, callback);
-  else
-    this._q.push([action, options, callback]); 
+Database.prototype._queueOrExecute = function(action, callerArgs) {
+  var a = Array.prototype.slice.call(callerArgs); // Calling function's arguments
+  a.splice(0, 0, action);
+
+  if (this._connected) {
+    this['_'+action].apply(this, a);
+  } else {
+    this._q.push(a); 
+  }
 };
 
-Database.prototype.create = function(options, callback) {
-  this._queueOrExecute('create', options, callback);
+Database.prototype.create = function() {
+  this._queueOrExecute('create', arguments);
 };
 
-Database.prototype.read = function(options, callback) {
-  this._queueOrExecute('read', options, callback);
+Database.prototype.read = function() {
+  this._queueOrExecute('read', arguments);
 };
 
-Database.prototype.readOne = function(options, callback) {
-  this._queueOrExecute('readOne', options, callback);
+Database.prototype.readOne = function() {
+  /* Return a document that matches the specified query. If the query finds
+   * multiple documents, only get the first matched.
+   *
+   * @params
+   * query - (optional) document that specifies a query
+   * projection - (optional) fields to return
+   * callback - function to execute.
+   *
+   * @returns
+   * single document
+   */
+  this._queueOrExecute('readOne', arguments);
 };
 
-Database.prototype.update = function(options, callback) {
-  this._queueOrExecute('update', options, callback);
+Database.prototype.update = function() {
+  this._queueOrExecute('update', arguments);
 };
 
 Database.prototype.ObjectId = function(string) {
   return (string) ? ObjectId(string) : new ObjectId().toString();
-}
+};
 
 module.exports = Database;
