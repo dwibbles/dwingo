@@ -29,7 +29,7 @@ var Command = function(args) {
     this.args.push(this.handler); // Attach handler to args array.
 };
 
-var Database = function(name) {
+var Database = function(name, uri) {
   var self = this;
 
   events.EventEmitter.call(this);
@@ -48,12 +48,18 @@ var Database = function(name) {
   });
 
   db = new Db(name, server, {safe: true});
-  db.open(function(error, db) {
+
+  function connectHandler(error, db) {
     if (error)
       self.emit('error', error);
     else
       self.emit('connected', db);
-  });
+  }
+
+  if (uri)
+    mongo.connect(uri, connectHandler) // connect to db
+  else
+    db.open(connectHandler); // local
 
 };
 
