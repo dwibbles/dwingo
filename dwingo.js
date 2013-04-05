@@ -109,6 +109,16 @@ Database.prototype._update = function() {
   });
 };
 
+Database.prototype._remove = function() {
+  var command = new Command(arguments);
+
+  this._client.collection(command.collectionName, function(error, collection) {
+    if (error) return command.callback(error, null);
+    
+    collection.remove.apply(collection, command.args);
+  });
+};
+
 Database.prototype._queueOrExecute = function(action, callerArgs) {
   var a = Array.prototype.slice.call(callerArgs); // Calling function's arguments
   a.splice(0, 0, action);
@@ -141,6 +151,10 @@ Database.prototype.readOne = function() {
    * single document
    */
   this._queueOrExecute('readOne', arguments);
+};
+
+Database.prototype.remove = function() {
+  this._queueOrExecute('remove', arguments);
 };
 
 Database.prototype.update = function() {
